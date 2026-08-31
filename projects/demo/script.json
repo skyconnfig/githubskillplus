@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "projectName": "ultrademo",
+  "githubUrl": "https://github.com/andrewluxem/ultrademo",
+  "targetDurationMs": 12000,
+  "lines": [
+    {
+      "id": "line-01",
+      "text": "这是 GitHub 项目 ultrademo：Demo video pipeli…。",
+      "keyword": "ultrademo",
+      "visualIntent": "repo-intro",
+      "githubTarget": {
+        "kind": "repo-title",
+        "text": "ultrademo"
+      },
+      "importance": 1
+    },
+    {
+      "id": "line-02",
+      "text": "当前有 1 个 Star，0 个 Fork。",
+      "keyword": "1 Star",
+      "visualIntent": "github-popularity",
+      "githubTarget": {
+        "kind": "stars",
+        "text": "1"
+      },
+      "importance": 2
+    },
+    {
+      "id": "line-03",
+      "text": "README 重点是“Ultrademo”，继续看这里。",
+      "keyword": "Ultrademo",
+      "visualIntent": "readme-highlight",
+      "githubTarget": {
+        "kind": "readme-text",
+        "text": "Point your AI Agent at your…"
+      },
+      "importance": 1
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "stage": "render",
+  "inputHash": "9d9db9cebd739e47c8656c346a976b3b31bdefa8adf3677c3e25a6b158e9c2ee",
+  "updatedAt": "2026-08-31T03:03:04.379Z",
+  "stages": {
+    "script": {
+      "inputHash": "61ad69ecf869ba7140641fe3b9d6acc6c32e4dc16febb54aa9f2bc5d4fcc326b",
+      "updatedAt": "2026-08-31T01:31:09.497Z"
+    },
+    "storyboard": {
+      "inputHash": "fed6e6115a9989507dea09478e174964605bf235b9d17b0fa801ba53f866c5f7",
+      "updatedAt": "2026-08-31T02:26:30.971Z"
+    },
+    "capture": {
+      "inputHash": "5038c984ed5180c1e7b866e15d3b1bdb7c9be4bf5ae8e878d4aa1b961960db80",
+      "updatedAt": "2026-08-31T02:59:41.185Z"
+    },
+    "render": {
+      "inputHash": "9d9db9cebd739e47c8656c346a976b3b31bdefa8adf3677c3e25a6b158e9c2ee",
+      "updatedAt": "2026-08-31T03:03:04.378Z"
+    },
+    "tts": {
+      "inputHash": "e3ed2381ac92c05e17b1d5d5a793378c452a4f887deb1431759f9130146dcbc9",
+      "updatedAt": "2026-08-31T02:26:47.887Z"
+    }
+  }
+}

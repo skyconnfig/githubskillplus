@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "analyzedAt": "2026-08-31T01:11:13.689Z",
+  "githubUrl": "https://github.com/andrewluxem/ultrademo",
+  "owner": "andrewluxem",
+  "name": "ultrademo",
+  "fullName": "andrewluxem/ultrademo",
+  "title": "ultrademo",
+  "description": "Demo video pipeline (Playwright capture -> TTS -> Remotion render), audited fork of new-xp/ultrademo",
+  "stars": 1,
+  "forks": 0,
+  "watchers": 1,
+  "license": "Apache-2.0",
+  "languages": {
+    "JavaScript": 42137,
+    "TypeScript": 31582
+  },
+  "topics": [],
+  "defaultBranch": "main",
+  "readme": "# Ultrademo\n\nPoint your AI Agent at your web app and get a narrated demo video. Everything runs on **your** machine: your credentials, your data, and your renders never leave it.\n\n## See it work\n\n![Ultrademo output: building a project tracker in Notion, captured and narrated automatically](docs/notion-tracker-2026-07-10.gif)\n\nThis 90-second Notion tutorial was produced end to end by the pipeline: scouted, scripted (with a human sign-off), captured through a signed-in browser session, narrated with ElevenLabs, and rendered - all from [one flow file](examples/notion-tracker/flow.mjs). The full MP4 with narration is on [ultrademo.net](https://ultrademo.net).\n\nUltrademo is a capture-and-render pipeline plus a Claude Code skill that drives it. Tell Claude \"make a 2-minute walkthrough of my app\", review the script it drafts, and get a finished, narrated MP4. The same capture can also produce opt-in extras when they fit: a GIF (downscaled, for READMEs and embeds), a 9:16 vertical cut (best when your app has a mobile view - cropping a dense desktop UI rarely earns it), or editor-ready stems (clean video + narration track + SRT) if you finish in your own editor.\n\n**How it works:** a flow file (the shot list) drives Playwright through your app, producing a `storyboard.json` - ordered scenes with screenshots, real screen-recording clips, cursor tracks, and narration lines. TTS voices each line; Remotion renders the result with zooms, a synthetic cursor, and captions. The storyboard is the single source of truth: edit a narration line and re-render in minutes, re-capture one scene when your UI changes.\n\n## Requirements\n\n- Node 20+ (22 recommended), macOS / Linux / Windows\n- ffmpeg + ffprobe (`brew install ffmpeg` / `apt install ffmpeg` / `winget install ffmpeg`)\n- Chromium for Playwright (`npx playwright install chromium`)\n- A voice, best-first: an [ElevenLabs](https://elevenlabs.io) API key in `.env` (premium) → [Piper](https://github.com/rhasspy/piper) (`pip install piper-tts` - free, offline, all platforms) → macOS `say` (zero-install placeholder). Unchanged narration lines are cached, so re-renders never re-bill your ElevenLabs quota.\n\n## Install\n\n**Recommended - install the skill:**\n\n```bash\nnpx skills add new-xp/ultrademo          # pick YOUR agent when prompted\nnpx skills add new-xp/ultrademo -a claude-code   # or skip the prompt (Claude Code)\n```\n\nOne command, either form. **In the agent picker, choose the agent you actually use** (Claude Code, Codex, Cursor, OpenCode, Windsurf, ...) - the \"universal\" option installs to `.agents/skills/`, a shared location some agents (including Claude Code today) don't scan, so the skill silently never shows up.\n\n**Then start it** - the installer finishes quietly, so this is the step people miss:\n\n```bash\ncd your-app          # the project you want a video of\nclaude               # or your agent of choice\n> make a demo video of this app\n```\n\nOn first run the skill provisions the pipeline for you - clones this repo into `ultrademo-workspace/`, runs `npm ci` (lockfile-exact) and `playwright install`, creates `.env`, and verifies your environment - then scouts your app, drafts a scene-by-scene script for your sign-off, captures, and renders.\n\n**Skill not showing up?** (`/ultrademo` unknown, or your agent doesn't list it): it almost certainly landed in `.agents/skills/` from the \"universal\" picker choice. Re-run the install with your agent named explicitly (`npx skills add new-xp/ultrademo -a claude-code`), or move the `ultrademo` and `ultrademo-rerun` folders into `.claude/skills/` yourself.\n\nBuilt and tested with Claude Code; any agent that reads `AGENTS.md` can follow the same playbook. Gemini CLI looks for `GEMINI.md` by default, so set its `contextFileName` to `AGENTS.md` (or copy the file).\n\n**Or set up the workspace yourself** (no skill CLI, or you just want the pipeline):\n\n```bash\ngit clone https://github.com/new-xp/ultrademo ultrademo-workspace && cd ultrademo-workspace\nnpm ci\nnpx playwright install chromium\nnpm run doctor                 # verifies your environment\ncp .env.example .env           # optional: add ELEVENLABS_API_KEY for premium narration\n```\n\nWith the folder open in Claude Code (or another AGENTS.md-aware agent), just ask for a demo video. Prefer to drive it by hand? See **Manually** below.\n\n**Updating:** `git pull` in the workspace picks up pipeline and skill improvements (the skill checks for this itself and offers the pull when the clone falls behind); run `npm ci` after if dependencies changed. If you installed the skill standalone via the skills CLI, `npx skills update` refreshes the installed skill copy to match.\n\n**Manually:** copy `capture/flow-template.mjs` to `projects/<app>-<topic>-<date-time>/flow.mjs`, edit the scenes, then:\n\n```bash\nnpm run capture -- <project>         # loads projects/<project>/flow.mjs\nnpm run tts -- <project>\nnpm run render -- <project>          # projects/<project>/out/<project>.mp4 (finalized)\nnpm run render -- <project> --vertical   # 9:16 cut (best for mobile-responsive apps; crops desktop UIs)\nnpm run render -- <project> --gif        # animated GIF (960x540, 15fps - keep videos short for this)\nnpm run render -- <project> --no-captions  # finalized video without burned-in captions\nnpm run render -- <project> --stems      # editor-ready stems (clean video, narration.mp3, captions.srt) + the finalized video\nnpm run studio                       # scrubbable preview\n```\n\n## What a flow can do\n\nStill scenes (screenshot + Ken Burns zoom), clip scenes (real recordings of typing, dialogs, transitions - with demo-paced actions, a synthetic cursor overlay, and `skipWhile()` jump-cuts over spinners), and phone-framed mobile scenes.\n\nEach video is a self-contained project folder - assets and outputs together, nothing scattered:\n\n```\nultrademo-workspace/\n├── .env                          # ELEVENLABS_API_KEY=... (optional, gitignored)\n├── .claude/skills/ultrademo/     # the skill (active when this folder is open in Claude Code)\n├── .profiles/                    # signed-in browser sessions from `npm run login` (gitignored)\n├── capture/  tts/  render/  scripts/   # pipeline code (+ capture/flow-template.mjs)\n└── projects/<app>-<topic>-<YYYY-MM-DD-HHMM>/     # ONE folder per video\n    ├── flow.mjs                  # the shot list (source - keep in git)\n    ├── reset.mjs                 # optional state-reset recipe for retakes\n    ├── assets/                   # storyboard.json + captures/ + audio/ (gitignored)\n    └── out/                      # finalized MP4, variants, stems/ (gitignored)\n```\n\nProject names follow `<app>-<feature-or-topic>-<date-time>`; retakes reuse the same project folder (that's what keeps the TTS cache warm). Preview any project with `npm run studio -- --public-dir projects/<name>/assets`.\n\n## Formats: one capture, the outputs that earn it\n\nThe default deliverable is always the **finalized 16:9 MP4** - captions burned in, narration mixed, ready to publish. Everything else is an opt-in re-render of the same storyboard, so none of it costs a re-capture or re-bills narration:\n\n| Output | Command | When it earns its place |\n|---|---|---|\n| Finalized MP4 (16:9) | `npm run render -- <project>` | always - the default, and still produced even when you ask for extras |\n| Vertical 9:16 | `--vertical` | your app has a mobile view, or the action is concentrated enough to survive the crop; dense desktop UIs usually aren't worth it |\n| GIF | `--gif` | READMEs, PRs, embeds - downscaled to 960x540/15fps; keep the target short (a 90s video ≈ 9 MB). GIFs are silent, so captions stay burned in by default to carry the narration; add `--no-captions` for a clean visual loop |\n| No burned-in captions | `--no-captions` | you'll subtitle in your publishing platform instead |\n| Editor stems | `--stems` | you finish in Premiere/Resolve/CapCut: clean video track + timeline-aligned `narration.mp3` + `captions.srt`, everything lining up on drop-in |\n\n## Redaction: capture over real data, safely\n\nDemo videos usually get shot against real apps with real data in them. Ultrademo's answer is **in-page redaction**: your flow ships a small script that blurs sensitive content live in the page - so it applies to stills *and* clips, survives scrolling and navigation, and never modifies your app or its data. Blur by pattern (emails, account numbers) or by selector (a customer-name column), and whitelist what should stay visible:\n\n```js\nredactScript: `(() => {\n  const RE = /@yourcompany\\.com|ACC-\\d+/;           // patterns to blur\n  const sweep = () => {\n    for (const el of document.querySelectorAll('span,div,p,a,td')) {\n      if (!el.dataset.redacted && el.children.length === 0 && RE.test(el.textContent)) {\n        el.style.filter = 'blur(6px)';\n        el.dataset.redacted = '1';\n      }\n    }\n  };\n  new MutationObserver(sweep).observe(document.body, {childList: true, subtree: true, characterData: true});\n  sweep(); setInterval(sweep, 400);\n})();`,\n```\n\nThe skill offers redaction whenever you're capturing real data, and its final frame check also sweeps for visible secrets (URL-bar tokens, keys in forms) before anything is presented. And because everything runs on your machine, unredacted frames never leave it in the first place.\n\n## Re-runs: your UI changed, your video shouldn't go stale\n\nEvery video is a stored, re-runnable project - that's the point of the project folder. When your app ships an update days or months later:\n\n```bash\nnode projects/<project>/reset.mjs        # if the flow mutates app state\nnpm run capture -- <project>             # same flow, fresh footage\nnpm run tts -- <project>                 # unchanged lines are cached - a visual refresh re-bills nothing\nnpm run render -- <project>\n```\n\nPrevious renders are automatically archived to `projects/<project>/out/archive/`, so every re-run leaves a before/after pair. If the update was cosmetic, that's the whole job. If it broke a selector, the skill re-scouts just the affected surface and patches the flow; if the feature itself changed, you edit the narration and only the edited lines re-synthesize. Reprompt, not reshoot.\n\nIn Claude Code, `/ultrademo-rerun` does all of this for you: it lists your projects, checks your saved login still works, reads your repo's diff since the last capture when the code is available, and reports what visibly changed scene by scene.\n\n## Capturing production apps\n\nRules the skill enforces and manual users should follow: scout read-only; never save settings on camera; know which actions cost money before recording them (retakes multiply the cost); give stateful flows a reset recipe; redact anything you would not show a stranger (see above).\n\n## Security\n\nScanned with [NVIDIA SkillSpector](https://github.com/NVIDIA/skillspector) - **0/100, SAFE** with the committed baseline. Every finding was triaged; the false positives (all heuristic matches on legitimate browser-automation and `.env` key-setup code) are documented with justifications in [`.skillspector-baseline.yaml`](.skillspector-baseline.yaml). Full write-up: [`SECURITY-SCAN.md`](SECURITY-SCAN.md). Reproduce with `skillspector scan . --no-llm --baseline .skillspector-baseline.yaml`.\n\n## License\n\nApache-2.0 (see `LICENSE`). Note: Ultrademo depends on [Remotion](https://remotion.dev), which has its own license - free for individuals and small companies, but larger companies need a Remotion company license. Check your eligibility at remotion.dev/license.\n\n---\n\nBuilt by [New XP](https://newxp.co) · https://ultrademo.net\n",
+  "readmeHeadings": [
+    {
+      "heading": "Ultrademo",
+      "level": 1
+    },
+    {
+      "heading": "See it work",
+      "level": 2
+    },
+    {
+      "heading": "Requirements",
+      "level": 2
+    },
+    {
+      "heading": "Install",
+      "level": 2
+    },
+    {
+      "heading": "What a flow can do",
+      "level": 2
+    },
+    {
+      "heading": "Formats: one capture, the outputs that earn it",
+      "level": 2
+    },
+    {
+      "heading": "Redaction: capture over real data, safely",
+      "level": 2
+    },
+    {
+      "heading": "Re-runs: your UI changed, your video shouldn't go stale",
+      "level": 2
+    },
+    {
+      "heading": "Capturing production apps",
+      "level": 2
+    },
+    {
+      "heading": "Security",
+      "level": 2
+    },
+    {
+      "heading": "License",
+      "level": 2
+    }
+  ],
+  "sections": [
+    {
+      "heading": "Ultrademo",
+      "level": 1,
+      "body": "Point your AI Agent at your web app and get a narrated demo video. Everything runs on **your** machine: your credentials, your data, and your renders never leave it.",
+      "category": "demo"
+    },
+    {
+      "heading": "See it work",
+      "level": 2,
+      "body": "![Ultrademo output: building a project tracker in Notion, captured and narrated automatically](docs/notion-tracker-2026-07-10.gif)\n\nThis 90-second Notion tutorial was produced end to end by the pipeline: scouted, scripted (with a human sign-off), captured through a signed-in browser session, narrated with ElevenLabs, and rendered - all from [one flow file](examples/notion-tracker/flow.mjs). The full MP4 with narration is on [ultrademo.net](https://ultrademo.net).\n\nUltrademo is a capture-and-render pipeline plus a Claude Code skill that drives it. Tell Claude \"make a 2-minute walkthrough of my app\", review the script it drafts, and get a finished, narrated MP4. The same capture can also produce opt-in extras when they fit: a GIF (downscaled, for READMEs and embeds), a 9:16 vertical cut (best when your app has a mobile view - cropping a dense desktop UI rarely earns it), or editor-ready stems (clean video + narration track + SRT) if you finish in your own editor.\n\n**How it works:** a flow file (the shot list) drives Playwright through your app, producing a `storyboard.json` - ordered scenes with screenshots, real screen-recording clips, cursor tracks, and narration lines. TTS voices each line; Remotion renders the result with zooms, a synthetic cursor, and captions. The storyboard is the single source of truth: edit a narration line and re-render in minutes, re-capture one scene when your UI changes.",
+      "category": "other"
+    },
+    {
+      "heading": "Requirements",
+      "level": 2,
+      "body": "- Node 20+ (22 recommended), macOS / Linux / Windows\n- ffmpeg + ffprobe (`brew install ffmpeg` / `apt install ffmpeg` / `winget install ffmpeg`)\n- Chromium for Playwright (`npx playwright install chromium`)\n- A voice, best-first: an [ElevenLabs](https://elevenlabs.io) API key in `.env` (premium) → [Piper](https://github.com/rhasspy/piper) (`pip install piper-tts` - free, offline, all platforms) → macOS `say` (zero-install placeholder). Unchanged narration lines are cached, so re-renders never re-bill your ElevenLabs quota.",
+      "category": "hardware"
+    },
+    {
+      "heading": "Install",
+      "level": 2,
+      "body": "**Recommended - install the skill:**\n\n```bash\nnpx skills add new-xp/ultrademo          # pick YOUR agent when prompted\nnpx skills add new-xp/ultrademo -a claude-code   # or skip the prompt (Claude Code)\n```\n\nOne command, either form. **In the agent picker, choose the agent you actually use** (Claude Code, Codex, Cursor, OpenCode, Windsurf, ...) - the \"universal\" option installs to `.agents/skills/`, a shared location some agents (including Claude Code today) don't scan, so the skill silently never shows up.\n\n**Then start it** - the installer finishes quietly, so this is the step people miss:\n\n```bash\ncd your-app          # the project you want a video of\nclaude               # or your agent of choice\n> make a demo video of this app\n```\n\nOn first run the skill provisions the pipeline for you - clones this repo into `ultrademo-workspace/`, runs `npm ci` (lockfile-exact) and `playwright install`, creates `.env`, and verifies your environment - then scouts your app, drafts a scene-by-scene script for your sign-off, captures, and renders.\n\n**Skill not showing up?** (`/ultrademo` unknown, or your agent doesn't list it): it almost certainly landed in `.agents/skills/` from the \"universal\" picker choice. Re-run the install with your agent named explicitly (`npx skills add new-xp/ultrademo -a claude-code`), or move the `ultrademo` and `ultrademo-rerun` folders into `.claude/skills/` yourself.\n\nBuilt and tested with Claude Code; any agent that reads `AGENTS.md` can follow the same playbook. Gemini CLI looks for `GEMINI.md` by default, so set its `contextFileName` to `AGENTS.md` (or copy the file).\n\n**Or set up the workspace yourself** (no skill CLI, or you just want the pipeline):\n\n```bash\ngit clone https://github.com/new-xp/ultrademo ultrademo-workspace && cd ultrademo-workspace\nnpm ci\nnpx playwright install chromium\nnpm run doctor                 # verifies your environment\ncp .env.example .env           # optional: add ELEVENLABS_API_KEY for premium narration\n```\n\nWith the folder open in Claude Code (or another AGENTS.md-aware agent), just ask for a demo video. Prefer to drive it by hand? See **Manually** below.\n\n**Updating:** `git pull` in the workspace picks up pipeline and skill improvements (the skill checks for this itself and offers the pull when the clone falls behind); run `npm ci` after if dependencies changed. If you installed the skill standalone via the skills CLI, `npx skills update` refreshes the installed skill copy to match.\n\n**Manually:** copy `capture/flow-template.mjs` to `projects/<app>-<topic>-<date-time>/flow.mjs`, edit the scenes, then:\n\n```bash\nnpm run capture -- <project>         # loads projects/<project>/flow.mjs\nnpm run tts -- <project>\nnpm run render -- <project>          # projects/<project>/out/<project>.mp4 (finalized)\nnpm run render -- <project> --vertical   # 9:16 cut (best for mobile-responsive apps; crops desktop UIs)\nnpm run render -- <project> --gif        # animated GIF (960x540, 15fps - keep videos short for this)\nnpm run render -- <project> --no-captions  # finalized video without burned-in captions\nnpm run render -- <project> --stems      # editor-ready stems (clean video, narration.mp3, captions.srt) + the finalized video\nnpm run studio                       # scrubbable preview\n```",
+      "category": "installation"
+    },
+    {
+      "heading": "What a flow can do",
+      "level": 2,
+      "body": "Still scenes (screenshot + Ken Burns zoom), clip scenes (real recordings of typing, dialogs, transitions - with demo-paced actions, a synthetic cursor overlay, and `skipWhile()` jump-cuts over spinners), and phone-framed mobile scenes.\n\nEach video is a self-contained project folder - assets and outputs together, nothing scattered:\n\n```\nultrademo-workspace/\n├── .env                          # ELEVENLABS_API_KEY=... (optional, gitignored)\n├── .claude/skills/ultrademo/     # the skill (active when this folder is open in Claude Code)\n├── .profiles/                    # signed-in browser sessions from `npm run login` (gitignored)\n├── capture/  tts/  render/  scripts/   # pipeline code (+ capture/flow-template.mjs)\n└── projects/<app>-<topic>-<YYYY-MM-DD-HHMM>/     # ONE folder per video\n    ├── flow.mjs                  # the shot list (source - keep in git)\n    ├── reset.mjs                 # optional state-reset recipe for retakes\n    ├── assets/                   # storyboard.json + captures/ + audio/ (gitignored)\n    └── out/                      # finalized MP4, variants, stems/ (gitignored)\n```\n\nProject names follow `<app>-<feature-or-topic>-<date-time>`; retakes reuse the same project folder (that's what keeps the TTS cache warm). Preview any project with `npm run studio -- --public-dir projects/<name>/assets`.",
+      "category": "other"
+    },
+    {
+      "heading": "Formats: one capture, the outputs that earn it",
+      "level": 2,
+      "body": "The default deliverable is always the **finalized 16:9 MP4** - captions burned in, narration mixed, ready to publish. Everything else is an opt-in re-render of the same storyboard, so none of it costs a re-capture or re-bills narration:\n\n| Output | Command | When it earns its place |\n|---|---|---|\n| Finalized MP4 (16:9) | `npm run render -- <project>` | always - the default, and still produced even when you ask for extras |\n| Vertical 9:16 | `--vertical` | your app has a mobile view, or the action is concentrated enough to survive the crop; dense desktop UIs usually aren't worth it |\n| GIF | `--gif` | READMEs, PRs, embeds - downscaled to 960x540/15fps; keep the target short (a 90s video ≈ 9 MB). GIFs are silent, so captions stay burned in by default to carry the narration; add `--no-captions` for a clean visual loop |\n| No burned-in captions | `--no-captions` | you'll subtitle in your publishing platform instead |\n| Editor stems | `--stems` | you finish in Premiere/Resolve/CapCut: clean video track + timeline-aligned `narration.mp3` + `captions.srt`, everything lining up on drop-in |",
+      "category": "other"
+    },
+    {
+      "heading": "Redaction: capture over real data, safely",
+      "level": 2,
+      "body": "Demo videos usually get shot against real apps with real data in them. Ultrademo's answer is **in-page redaction**: your flow ships a small script that blurs sensitive content live in the page - so it applies to stills *and* clips, survives scrolling and navigation, and never modifies your app or its data. Blur by pattern (emails, account numbers) or by selector (a customer-name column), and whitelist what should stay visible:\n\n```js\nredactScript: `(() => {\n  const RE = /@yourcompany\\.com|ACC-\\d+/;           // patterns to blur\n  const sweep = () => {\n    for (const el of document.querySelectorAll('span,div,p,a,td')) {\n      if (!el.dataset.redacted && el.children.length === 0 && RE.test(el.textContent)) {\n        el.style.filter = 'blur(6px)';\n        el.dataset.redacted = '1';\n      }\n    }\n  };\n  new MutationObserver(sweep).observe(document.body, {childList: true, subtree: true, characterData: true});\n  sweep(); setInterval(sweep, 400);\n})();`,\n```\n\nThe skill offers redaction whenever you're capturing real data, and its final frame check also sweeps for visible secrets (URL-bar tokens, keys in forms) before anything is presented. And because everything runs on your machine, unredacted frames never leave it in the first place.",
+      "category": "other"
+    },
+    {
+      "heading": "Re-runs: your UI changed, your video shouldn't go stale",
+      "level": 2,
+      "body": "Every video is a stored, re-runnable project - that's the point of the project folder. When your app ships an update days or months later:\n\n```bash\nnode projects/<project>/reset.mjs        # if the flow mutates app state\nnpm run capture -- <project>             # same flow, fresh footage\nnpm run tts -- <project>                 # unchanged lines are cached - a visual refresh re-bills nothing\nnpm run render -- <project>\n```\n\nPrevious renders are automatically archived to `projects/<project>/out/archive/`, so every re-run leaves a before/after pair. If the update was cosmetic, that's the whole job. If it broke a selector, the skill re-scouts just the affected surface and patches the flow; if the feature itself changed, you edit the narration and only the edited lines re-synthesize. Reprompt, not reshoot.\n\nIn Claude Code, `/ultrademo-rerun` does all of this for you: it lists your projects, checks your saved login still works, reads your repo's diff since the last capture when the code is available, and reports what visibly changed scene by scene.",
+      "category": "other"
+    },
+    {
+      "heading": "Capturing production apps",
+      "level": 2,
+      "body": "Rules the skill enforces and manual users should follow: scout read-only; never save settings on camera; know which actions cost money before recording them (retakes multiply the cost); give stateful flows a reset recipe; redact anything you would not show a stranger (see above).",
+      "category": "other"
+    },
+    {
+      "heading": "Security",
+      "level": 2,
+      "body": "Scanned with [NVIDIA SkillSpector](https://github.com/NVIDIA/skillspector) - **0/100, SAFE** with the committed baseline. Every finding was triaged; the false positives (all heuristic matches on legitimate browser-automation and `.env` key-setup code) are documented with justifications in [`.skillspector-baseline.yaml`](.skillspector-baseline.yaml). Full write-up: [`SECURITY-SCAN.md`](SECURITY-SCAN.md). Reproduce with `skillspector scan . --no-llm --baseline .skillspector-baseline.yaml`.",
+      "category": "other"
+    },
+    {
+      "heading": "License",
+      "level": 2,
+      "body": "Apache-2.0 (see `LICENSE`). Note: Ultrademo depends on [Remotion](https://remotion.dev), which has its own license - free for individuals and small companies, but larger companies need a Remotion company license. Check your eligibility at remotion.dev/license.\n\n---\n\nBuilt by [New XP](https://newxp.co) · https://ultrademo.net",
+      "category": "other"
+    }
+  ],
+  "images": [
+    {
+      "alt": "Ultrademo output: building a project tracker in Notion, captured and narrated automatically",
+      "url": "docs/notion-tracker-2026-07-10.gif"
+    }
+  ],
+  "sources": [
+    "https://github.com/andrewluxem/ultrademo",
+    "https://api.github.com/repos/andrewluxem/ultrademo",
+    "https://raw.githubusercontent.com/andrewluxem/ultrademo/main/README.md"
+  ],
+  "warnings": []
+}

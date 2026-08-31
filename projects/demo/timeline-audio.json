@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "audioPath": "D:\\AI\\githubskillplus\\projects\\demo\\audio\\narration.wav",
+  "totalDurationMs": 11743,
+  "segments": [
+    {
+      "lineId": "line-01",
+      "text": "这是 GitHub 项目 ultrademo：Demo video pipeli…。",
+      "audioPath": "D:\\AI\\githubskillplus\\projects\\demo\\audio\\line-01.wav",
+      "startMs": 0,
+      "durationMs": 5404,
+      "endMs": 5404
+    },
+    {
+      "lineId": "line-02",
+      "text": "当前有 1 个 Star，0 个 Fork。",
+      "audioPath": "D:\\AI\\githubskillplus\\projects\\demo\\audio\\line-02.wav",
+      "startMs": 5404,
+      "durationMs": 2670,
+      "endMs": 8074
+    },
+    {
+      "lineId": "line-03",
+      "text": "README 重点是“Ultrademo”，继续看这里。",
+      "audioPath": "D:\\AI\\githubskillplus\\projects\\demo\\audio\\line-03.wav",
+      "startMs": 8074,
+      "durationMs": 3669,
+      "endMs": 11743
+    }
+  ]
+}

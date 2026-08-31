@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.vite/
+.cache/
+.env
+.env.*
+projects/*/capture/
+projects/*/audio/
+projects/*/screenshots/
+projects/*/renders/
+projects/*/logs/
+output/
+*.mp4
+*.webm
+*.wav
+*.mp3
+*.timing.json

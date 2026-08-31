@@ -1,0 +1,5 @@
+{
+  "name": "@github-video-studio/cli",
+  "private": true,
+  "type": "module"
+}

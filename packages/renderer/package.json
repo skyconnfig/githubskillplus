@@ -1,0 +1,5 @@
+{
+  "name": "@github-video-studio/renderer",
+  "private": true,
+  "type": "module"
+}

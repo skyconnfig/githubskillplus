@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "status": "approved",
+  "project": {
+    "title": "ultrademo",
+    "githubUrl": "https://github.com/andrewluxem/ultrademo",
+    "fps": 30,
+    "width": 1440,
+    "height": 1080,
+    "targetDurationMs": 12000,
+    "style": "REFERENCE_TECH_EXPLAINER"
+  },
+  "scenes": [
+    {
+      "id": "scene-001",
+      "lineId": "line-01",
+      "narration": "这是 GitHub 项目 ultrademo：Demo video pipeli…。",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/andrewluxem/ultrademo",
+        "target": {
+          "kind": "repo-title",
+          "text": "ultrademo"
+        }
+      },
+      "camera": {
+        "desiredScale": 1.55,
+        "rotation": -0.6,
+        "transitionMs": 560,
+        "padding": 64
+      },
+      "annotations": [
+        {
+          "id": "scene-001-title-circle",
+          "type": "hand-circle",
+          "target": {
+            "kind": "repo-title",
+            "text": "ultrademo"
+          },
+          "color": "#FF00DC",
+          "strokeWidth": 11
+        }
+      ]
+    },
+    {
+      "id": "scene-002",
+      "lineId": "line-02",
+      "narration": "当前有 1 个 Star，0 个 Fork。",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/andrewluxem/ultrademo",
+        "target": {
+          "kind": "stars",
+          "text": "1"
+        }
+      },
+      "camera": {
+        "desiredScale": 2.25,
+        "rotation": 0.8,
+        "transitionMs": 560,
+        "padding": 36
+      },
+      "annotations": [
+        {
+          "id": "scene-002-stars-circle",
+          "type": "hand-circle",
+          "target": {
+            "kind": "stars",
+            "text": "1"
+          },
+          "color": "#FF00DC",
+          "strokeWidth": 11
+        }
+      ]
+    },
+    {
+      "id": "scene-003",
+      "lineId": "line-03",
+      "narration": "README 重点是“Ultrademo”，继续看这里。",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/andrewluxem/ultrademo",
+        "target": {
+          "kind": "readme-text",
+          "text": "Point your AI Agent at your…"
+        }
+      },
+      "camera": {
+        "desiredScale": 1.65,
+        "rotation": -1.2,
+        "transitionMs": 620,
+        "padding": 54
+      },
+      "annotations": [
+        {
+          "id": "scene-003-readme-selection",
+          "type": "text-selection",
+          "target": {
+            "kind": "readme-text",
+            "text": "Point your AI Agent at your…"
+          },
+          "color": "#3B82F6",
+          "strokeWidth": 0
+        },
+        {
+          "id": "scene-003-readme-spotlight",
+          "type": "spotlight",
+          "target": {
+            "kind": "readme-text",
+            "text": "Point your AI Agent at your…"
+          },
+          "color": "#000000",
+          "strokeWidth": 0
+        }
+      ]
+    }
+  ]
+}
