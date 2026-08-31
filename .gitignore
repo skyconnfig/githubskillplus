@@ -9,6 +9,8 @@ projects/*/audio/
 projects/*/screenshots/
 projects/*/renders/
 projects/*/logs/
+# Runtime project manifests are generated locally; projects/demo JSON remains the tracked fixture.
+projects/*/*.json
 output/
 *.mp4
 *.webm
