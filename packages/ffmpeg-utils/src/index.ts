@@ -58,6 +58,10 @@ export async function stripAudio(inputPath: string, outputPath: string): Promise
   await runProcess(binary("ffmpeg"), ["-y", "-i", inputPath, "-map", "0:v:0", "-c:v", "copy", "-an", outputPath]);
 }
 
+export async function padAudio(inputPath: string, outputPath: string, durationMs: number): Promise<void> {
+  await runProcess(binary("ffmpeg"), ["-y", "-i", inputPath, "-af", "apad", "-t", (durationMs / 1000).toFixed(3), "-c:a", "pcm_s16le", outputPath]);
+}
+
 export async function inspectVideoFilter(filePath: string, filter: string, marker: RegExp): Promise<FilterProbe> {
   try {
     const result = await runProcess(binary("ffmpeg"), ["-hide_banner", "-i", filePath, "-vf", filter, "-an", "-f", "null", "-"]);

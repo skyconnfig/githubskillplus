@@ -1,4 +1,6 @@
 export type VisualIntent =
+  | "hook"
+  | "establish"
   | "repo-intro"
   | "github-popularity"
   | "readme-highlight"
@@ -27,6 +29,7 @@ export interface ReadmeSection {
     | "hardware"
     | "demo"
     | "requirements"
+    | "architecture"
     | "other";
 }
 
@@ -66,6 +69,7 @@ export interface ScriptLine {
   visualIntent: VisualIntent;
   githubTarget: TargetRef;
   importance: 1 | 2 | 3;
+  evidenceIds: string[];
 }
 
 export interface ScriptDocument {
@@ -76,6 +80,42 @@ export interface ScriptDocument {
   lines: ScriptLine[];
 }
 
+export type EvidenceType =
+  | "repo"
+  | "metric"
+  | "feature"
+  | "benchmark"
+  | "hardware"
+  | "requirement"
+  | "architecture"
+  | "code"
+  | "image"
+  | "demo"
+  | "installation"
+  | "usage";
+
+export type EvidenceSource = "github-api" | "readme" | "release" | "repository";
+
+export interface EvidenceItem {
+  id: string;
+  type: EvidenceType;
+  claim: string;
+  value?: string | number;
+  source: EvidenceSource;
+  confidence: number;
+  target: TargetRef;
+  quote?: string;
+  section?: string;
+}
+
+export interface EvidenceDocument {
+  schemaVersion: 1;
+  projectName: string;
+  githubUrl: string;
+  items: EvidenceItem[];
+  warnings: string[];
+}
+
 export type AnnotationType =
   | "hand-circle"
   | "hand-underline"
@@ -84,11 +124,33 @@ export type AnnotationType =
   | "spotlight"
   | "text-selection";
 
+export type ExtendedAnnotationType = AnnotationType | "highlight" | "bracket" | "callout" | "number-badge" | "focus-ring";
+
+export type CameraMode = "static" | "zoom-in" | "zoom-out" | "pan" | "follow-target" | "follow-cursor";
+export type CameraEasing = "linear" | "ease-in" | "ease-out" | "ease-in-out" | "spring";
+
 export interface CameraIntent {
+  mode: CameraMode;
   desiredScale: number;
   rotation: number;
   transitionMs: number;
+  holdMs?: number;
   padding: number;
+  easing?: CameraEasing;
+  followDelayMs?: number;
+}
+
+export interface AnnotationIntent {
+  id: string;
+  type: ExtendedAnnotationType;
+  targetId: string;
+  startMs: number;
+  enterMs: number;
+  holdMs: number;
+  exitMs: number;
+  color?: string;
+  strokeWidth?: number;
+  label?: string;
 }
 
 export interface StoryboardScene {
@@ -96,14 +158,12 @@ export interface StoryboardScene {
   lineId: string;
   narration: string;
   source: { type: "github"; url: string; target: TargetRef };
+  startMs: number;
+  endMs: number;
+  beatType: VisualBeat["type"];
+  targetId: string;
   camera: CameraIntent;
-  annotations: Array<{
-    id: string;
-    type: AnnotationType;
-    target: TargetRef;
-    color: string;
-    strokeWidth: number;
-  }>;
+  annotations: AnnotationIntent[];
 }
 
 export interface StoryboardDocument {
@@ -113,9 +173,11 @@ export interface StoryboardDocument {
     title: string;
     githubUrl: string;
     fps: 30;
-    width: 1440;
-    height: 1080;
+    width: number;
+    height: number;
     targetDurationMs: number;
+    templateId: string;
+    aspect: VideoAspect;
     style: "REFERENCE_TECH_EXPLAINER";
   };
   scenes: StoryboardScene[];
@@ -139,12 +201,81 @@ export interface LocatedTarget {
   pageUrl: string;
 }
 
+export interface PointerSample {
+  timeMs: number;
+  x: number;
+  y: number;
+  event: "move" | "down" | "up" | "click" | "idle";
+  button?: "left" | "right" | "middle";
+}
+
+export interface ScrollSample {
+  timeMs: number;
+  scrollX: number;
+  scrollY: number;
+}
+
+export interface TargetSample extends BoundingBox {
+  timeMs: number;
+  visible: boolean;
+}
+
+export interface TargetTrack {
+  targetId: string;
+  samples: TargetSample[];
+}
+
 export interface CaptureEvent extends LocatedTarget {
   sceneId: string;
   lineId: string;
   timestampMs: number;
   durationMs: number;
-  cursorTrack: Array<{ timeMs: number; x: number; y: number }>;
+  targetId: string;
+  cursorTrack: PointerSample[];
+}
+
+export type CaptureAction =
+  | { type: "goto"; url: string }
+  | { type: "scroll-to"; targetId: string; durationMs?: number }
+  | { type: "scroll-by"; y: number; durationMs?: number }
+  | { type: "cursor-move"; targetId: string; durationMs?: number }
+  | { type: "hover"; targetId: string }
+  | { type: "click"; targetId: string }
+  | { type: "wait"; durationMs: number };
+
+export type DirectorAction =
+  | { type: "camera-zoom"; scale: number; targetId?: string; transitionMs?: number }
+  | { type: "camera-pan"; targetId: string; transitionMs?: number }
+  | { type: "camera-zoom-out"; transitionMs?: number }
+  | { type: "hold"; durationMs: number }
+  | { type: "cursor-move"; targetId: string; durationMs?: number }
+  | { type: "cursor-click"; targetId: string; button?: "left" | "right" | "middle" }
+  | { type: "annotation"; annotation: ExtendedAnnotationType; targetId: string }
+  | { type: "goto"; url: string }
+  | { type: "scroll-to"; targetId: string; durationMs?: number }
+  | { type: "scroll-by"; y: number; durationMs?: number }
+  | { type: "hover"; targetId: string }
+  | { type: "click"; targetId: string }
+  | { type: "wait"; durationMs: number };
+
+export interface VisualBeat {
+  id: string;
+  sceneId: string;
+  type: "hook" | "establish" | "proof" | "feature" | "benchmark" | "hardware" | "architecture" | "demo" | "summary";
+  startMs: number;
+  endMs: number;
+  targetId?: string;
+  importance: 1 | 2 | 3;
+  actions: DirectorAction[];
+  camera?: CameraIntent;
+}
+
+export interface DirectorPlan {
+  schemaVersion: 1;
+  projectName: string;
+  templateId: string;
+  aspect: VideoAspect;
+  beats: VisualBeat[];
 }
 
 export interface CaptureManifest {
@@ -152,9 +283,12 @@ export interface CaptureManifest {
   createdAt: string;
   videoPath: string;
   videoStartMs: number;
-  viewport: { width: 1440; height: 1080 };
+  viewport: { width: number; height: number };
   screenshots: Record<string, string>;
   events: CaptureEvent[];
+  pointerTrack: PointerSample[];
+  scrollTrack: ScrollSample[];
+  targetTracks: TargetTrack[];
 }
 
 export interface AudioSegment {
@@ -173,6 +307,19 @@ export interface AudioTimeline {
   segments: AudioSegment[];
 }
 
+export interface WordTiming {
+  id: string;
+  lineId: string;
+  text: string;
+  startMs: number;
+  endMs: number;
+}
+
+export interface WordTimeline {
+  schemaVersion: 1;
+  words: WordTiming[];
+}
+
 export interface CameraPose {
   scale: number;
   cx: number;
@@ -183,6 +330,7 @@ export interface CameraKeyframe {
   timeMs: number;
   pose: CameraPose;
   rotation: number;
+  easing?: CameraEasing;
 }
 
 export interface CameraTrack {
@@ -193,4 +341,15 @@ export interface CameraTrack {
 export interface QualityReport {
   status: "pass" | "warn" | "fail";
   checks: Array<{ name: string; status: "pass" | "warn" | "fail"; message: string }>;
+}
+
+export type VideoAspect = "16:9" | "4:3" | "3:4" | "9:16";
+
+export interface VideoTemplate {
+  id: "12s" | "30s" | "45s" | "60s";
+  durationMs: number;
+  minScenes: number;
+  maxScenes: number;
+  pacing: "fast" | "normal";
+  aspect: VideoAspect;
 }

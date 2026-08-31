@@ -1,5 +1,12 @@
 {
   "name": "@github-video-studio/desktop",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "build": "vite build --config vite.config.ts",
+    "electron": "electron ../../dist/apps/desktop/main/index.js"
+  },
+  "devDependencies": {
+    "electron": "^44.0.0"
+  }
 }

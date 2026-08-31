@@ -13,6 +13,13 @@ from pathlib import Path
 ROOT = Path(os.environ.get("INDEXTTS_ROOT", r"D:\AI\indextts"))
 sys.path.insert(0, str(ROOT))
 
+# Torch 2.7 on this Windows/RTX 4060 host has an intermittent torch_cpu.dll
+# access violation when it initializes its default worker pool. Keep the
+# loopback bridge deterministic and avoid competing BLAS pools; callers can
+# explicitly override these values when running on another host.
+for _name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+    os.environ.setdefault(_name, "1")
+
 MODEL = None
 MODEL_LOCK = Lock()
 
@@ -21,6 +28,13 @@ def load_model():
     global MODEL
     if MODEL is not None:
         return MODEL
+    # OMP_NUM_THREADS only controls intra-op work. Torch keeps a separate
+    # inter-op pool at the host default (16 here), which causes torch_cpu.dll
+    # access violations while IndexTTS loads its semantic model on Windows.
+    import torch
+
+    torch.set_num_threads(int(os.environ.get("TORCH_NUM_THREADS", "1")))
+    torch.set_num_interop_threads(int(os.environ.get("TORCH_NUM_INTEROP_THREADS", "1")))
     from indextts.infer_v2_5 import IndexTTS2
 
     MODEL = IndexTTS2(

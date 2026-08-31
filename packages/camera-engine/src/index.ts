@@ -1,4 +1,4 @@
-import type { AudioTimeline, BoundingBox, CameraKeyframe, CameraPose, CameraTrack, CaptureEvent, LocatedTarget } from "../../../packages/shared/src/types.js";
+import type { AudioTimeline, BoundingBox, CameraEasing, CameraKeyframe, CameraPose, CameraTrack, CaptureEvent, PointerSample, StoryboardScene } from "../../../packages/shared/src/types.js";
 
 export const BASE_POSE: CameraPose = { scale: 1, cx: 0.5, cy: 0.48 };
 export const MIN_SCALE = 1.18;
@@ -12,6 +12,13 @@ export interface CameraOptions {
   viewport?: { width: number; height: number };
 }
 
+export interface CameraPlannerOptions {
+  viewport?: { width: number; height: number };
+  maxScale?: number;
+  minReadableScale?: number;
+  cursorFollowThreshold?: number;
+}
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -19,6 +26,15 @@ export function clamp(value: number, min: number, max: number): number {
 export function easeInOutCubic(value: number): number {
   const t = clamp(value, 0, 1);
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function ease(value: number, easing: CameraEasing = "ease-in-out"): number {
+  const t = clamp(value, 0, 1);
+  if (easing === "linear") return t;
+  if (easing === "ease-in") return t * t * t;
+  if (easing === "ease-out") return 1 - Math.pow(1 - t, 3);
+  if (easing === "spring") return 1 - Math.cos(t * Math.PI * 0.5) * Math.exp(-4 * t);
+  return easeInOutCubic(t);
 }
 
 function mix(a: number, b: number, t: number): number {
@@ -29,18 +45,15 @@ export function poseTravelPx(from: CameraPose, to: CameraPose, viewport: { width
   return Math.hypot((to.cx - from.cx) * viewport.width, (to.cy - from.cy) * viewport.height);
 }
 
-export function fitTarget(target: LocatedTarget | BoundingBox, options: CameraOptions = {}): CameraPose {
-  const viewport = options.viewport ?? {
-    width: "viewportWidth" in target ? target.viewportWidth : 1440,
-    height: "viewportHeight" in target ? target.viewportHeight : 1080,
-  };
+export function fitTarget(target: { boundingBox: BoundingBox; viewportWidth: number; viewportHeight: number } | BoundingBox, options: CameraOptions = {}): CameraPose {
+  const viewport = options.viewport ?? ("boundingBox" in target ? { width: target.viewportWidth, height: target.viewportHeight } : { width: 1440, height: 1080 });
   const box = "boundingBox" in target ? target.boundingBox : target;
   const padding = options.padding ?? 48;
   const desired = options.desiredScale ?? 1.55;
-  const maxScale = options.maxScale ?? MAX_SCALE;
+  const maxScale = Math.min(options.maxScale ?? MAX_SCALE, MAX_SCALE);
   const fitScale = Math.min(viewport.width / Math.max(1, box.width + padding * 2), viewport.height / Math.max(1, box.height + padding * 2));
-  const upperScale = Math.min(desired, fitScale, maxScale, MAX_SCALE);
-  const scale = upperScale < MIN_SCALE ? clamp(upperScale, 0.5, MAX_SCALE) : clamp(upperScale, MIN_SCALE, MAX_SCALE);
+  const upperScale = Math.min(desired, fitScale, maxScale);
+  const scale = upperScale < MIN_SCALE ? clamp(upperScale, 0.5, maxScale) : clamp(upperScale, MIN_SCALE, maxScale);
   const rawCx = (box.x + box.width / 2) / viewport.width;
   const rawCy = (box.y + box.height / 2) / viewport.height;
   const half = 1 / (2 * scale);
@@ -55,8 +68,8 @@ export function targetInsideSafeArea(target: BoundingBox, pose: CameraPose, view
   return left >= safePx && right <= viewport.width - safePx && top >= safePx && bottom <= viewport.height - safePx;
 }
 
-export function interpolatePose(from: CameraPose, to: CameraPose, progress: number): CameraPose {
-  const eased = easeInOutCubic(progress);
+export function interpolatePose(from: CameraPose, to: CameraPose, progress: number, easing: CameraEasing = "ease-in-out"): CameraPose {
+  const eased = ease(progress, easing);
   return { scale: mix(from.scale, to.scale, eased), cx: mix(from.cx, to.cx, eased), cy: mix(from.cy, to.cy, eased) };
 }
 
@@ -65,17 +78,17 @@ export function poseToCss(pose: CameraPose, fit = 1): { scale: number; translate
   return { scale, translateX: fit * (0.5 - pose.scale * pose.cx), translateY: fit * (0.5 - pose.scale * pose.cy) };
 }
 
-export function zoomTo(from: CameraPose, target: LocatedTarget | BoundingBox, startMs: number, endMs: number, options: CameraOptions = {}, rotation = 0): CameraKeyframe[] {
+export function zoomTo(from: CameraPose, target: { boundingBox: BoundingBox; viewportWidth: number; viewportHeight: number } | BoundingBox, startMs: number, endMs: number, options: CameraOptions = {}, rotation = 0, easing: CameraEasing = "ease-in-out"): CameraKeyframe[] {
   const pose = fitTarget(target, options);
-  return [{ timeMs: startMs, pose: from, rotation }, { timeMs: Math.max(startMs, endMs), pose, rotation }];
+  return [{ timeMs: startMs, pose: from, rotation, easing }, { timeMs: Math.max(startMs, endMs), pose, rotation, easing }];
 }
 
-export function panTo(from: CameraPose, target: CameraPose, startMs: number, endMs: number, rotation = 0): CameraKeyframe[] {
-  return [{ timeMs: startMs, pose: from, rotation }, { timeMs: Math.max(startMs, endMs), pose: target, rotation }];
+export function panTo(from: CameraPose, target: CameraPose, startMs: number, endMs: number, rotation = 0, easing: CameraEasing = "ease-in-out"): CameraKeyframe[] {
+  return [{ timeMs: startMs, pose: from, rotation, easing }, { timeMs: Math.max(startMs, endMs), pose: target, rotation, easing }];
 }
 
-export function zoomOut(from: CameraPose, startMs: number, endMs: number, rotation = 0): CameraKeyframe[] {
-  return [{ timeMs: startMs, pose: from, rotation }, { timeMs: Math.max(startMs, endMs), pose: BASE_POSE, rotation: 0 }];
+export function zoomOut(from: CameraPose, startMs: number, endMs: number, rotation = 0, easing: CameraEasing = "ease-in-out"): CameraKeyframe[] {
+  return [{ timeMs: startMs, pose: from, rotation, easing }, { timeMs: Math.max(startMs, endMs), pose: BASE_POSE, rotation: 0, easing }];
 }
 
 function normalizeKeys(keys: CameraKeyframe[]): CameraKeyframe[] {
@@ -98,7 +111,9 @@ export function sampleCameraTrack(track: CameraTrack, timeMs: number): CameraKey
     const previous = keys[index - 1]!;
     if (timeMs <= next.timeMs) {
       const span = Math.max(1, next.timeMs - previous.timeMs);
-      return { timeMs, pose: interpolatePose(previous.pose, next.pose, (timeMs - previous.timeMs) / span), rotation: mix(previous.rotation, next.rotation, easeInOutCubic((timeMs - previous.timeMs) / span)) };
+      const progress = (timeMs - previous.timeMs) / span;
+      const easing = previous.easing ?? "ease-in-out";
+      return { timeMs, pose: interpolatePose(previous.pose, next.pose, progress, easing), rotation: mix(previous.rotation, next.rotation, ease(progress, easing)), easing };
     }
   }
   return keys[keys.length - 1]!;
@@ -109,46 +124,89 @@ function segmentFor(lineId: string, timeline: AudioTimeline): { startMs: number;
   return segment ? { startMs: segment.startMs, endMs: segment.endMs } : undefined;
 }
 
-export function followTargets(events: CaptureEvent[], audioTimeline: AudioTimeline, options: { viewport?: { width: number; height: number }; defaultRotation?: number } = {}): CameraTrack {
+function cursorAt(samples: PointerSample[], timeMs: number): { x: number; y: number } | undefined {
+  if (samples.length === 0) return undefined;
+  const ordered = [...samples].sort((a, b) => a.timeMs - b.timeMs);
+  const next = ordered.find((sample) => sample.timeMs >= timeMs) ?? ordered[ordered.length - 1];
+  const previous = [...ordered].reverse().find((sample) => sample.timeMs <= timeMs) ?? ordered[0];
+  if (!next || !previous) return undefined;
+  const span = Math.max(1, next.timeMs - previous.timeMs);
+  const progress = clamp((timeMs - previous.timeMs) / span, 0, 1);
+  return { x: mix(previous.x, next.x, progress), y: mix(previous.y, next.y, progress) };
+}
+
+function pointPose(point: { x: number; y: number }, viewport: { width: number; height: number }, desiredScale: number): CameraPose {
+  const half = 1 / (2 * desiredScale);
+  return { scale: desiredScale, cx: clamp(point.x / viewport.width, half, 1 - half), cy: clamp(point.y / viewport.height, half, 1 - half) };
+}
+
+function poseForScene(scene: StoryboardScene, event: CaptureEvent, current: CameraPose, viewport: { width: number; height: number }, options: CameraPlannerOptions): CameraPose {
+  const intent = scene.camera;
+  if (intent.mode === "static") return current;
+  if (intent.mode === "zoom-out") return BASE_POSE;
+  if (intent.mode === "follow-cursor") {
+    const point = cursorAt(event.cursorTrack, intent.followDelayMs ?? 120);
+    if (!point || Math.hypot(point.x - viewport.width / 2, point.y - viewport.height / 2) < (options.cursorFollowThreshold ?? 0.25) * Math.min(viewport.width, viewport.height)) return current;
+    return pointPose(point, viewport, clamp(intent.desiredScale, options.minReadableScale ?? MIN_SCALE, options.maxScale ?? MAX_SCALE));
+  }
+  return fitTarget(event, { desiredScale: intent.desiredScale, padding: intent.padding, viewport, maxScale: options.maxScale });
+}
+
+export function planCameraTrack(events: CaptureEvent[], scenes: StoryboardScene[], audioTimeline: AudioTimeline, options: CameraPlannerOptions = {}): CameraTrack {
   const viewport = options.viewport ?? { width: 1440, height: 1080 };
-  const durationMs = Math.max(audioTimeline.totalDurationMs, 12000);
+  const durationMs = Math.max(audioTimeline.totalDurationMs, ...scenes.map((scene) => scene.endMs), 1);
+  const sceneById = new Map(scenes.map((scene) => [scene.id, scene]));
   const ordered = [...events].sort((a, b) => a.timestampMs - b.timestampMs);
-  const frames: CameraKeyframe[] = [{ timeMs: 0, pose: BASE_POSE, rotation: 0 }];
+  const frames: CameraKeyframe[] = [{ timeMs: 0, pose: BASE_POSE, rotation: 0, easing: "ease-in-out" }];
   let current = BASE_POSE;
   let currentRotation = 0;
   let currentEnd = 0;
-  for (let index = 0; index < ordered.length; index += 1) {
-    const event = ordered[index]!;
+  for (const [index, event] of ordered.entries()) {
+    const scene = sceneById.get(event.sceneId);
     const segment = segmentFor(event.lineId, audioTimeline);
-    if (!segment) continue;
-    const next = fitTarget(event, { desiredScale: event.target.kind === "stars" ? 2.25 : index === 0 ? 1.55 : 1.65, padding: event.target.kind === "stars" ? 30 : 52, viewport });
+    if (!scene || !segment) continue;
+    const intent = scene.camera;
     const start = segment.startMs;
-    const end = index === ordered.length - 1 ? durationMs : Math.min(durationMs, Math.max(start + 900, segment.endMs));
-    const transition = Math.min(650, Math.max(450, Math.floor(Math.max(1, end - start) * 0.28)));
-    const rotation = options.defaultRotation ?? 0;
+    const end = Math.min(durationMs, Math.max(start + 1, segment.endMs));
+    const easing = intent.easing ?? "ease-in-out";
+    const transition = Math.min(Math.max(0, intent.transitionMs), Math.max(0, end - start));
+    const next = poseForScene(scene, event, current, viewport, options);
+    const rotation = intent.rotation;
     const distance = poseTravelPx(current, next, viewport);
     if (index === 0) {
-      frames.push({ timeMs: start, pose: current, rotation: currentRotation });
-      frames.push({ timeMs: Math.min(end, start + transition), pose: next, rotation });
-    } else if (distance > MAX_PAN_PX) {
-      const available = Math.max(0, start - currentEnd);
-      const outDuration = Math.min(520, Math.max(260, Math.floor(available * 0.45)));
-      const inDuration = Math.min(620, Math.max(300, Math.floor(available * 0.55)));
-      const chainStart = Math.max(currentEnd, start - outDuration - inDuration);
-      const outEnd = Math.min(start, chainStart + outDuration);
-      const inStart = Math.min(start, outEnd);
-      frames.push(...zoomOut(current, chainStart, outEnd, currentRotation));
-      frames.push(...zoomTo(BASE_POSE, event, inStart, start, { desiredScale: next.scale, padding: 0, viewport }, rotation));
-    } else {
-      const panStart = Math.max(currentEnd, start - Math.min(700, Math.max(400, transition)));
-      const panEnd = Math.min(end, Math.max(start, panStart + transition));
-      frames.push(...panTo(current, next, panStart, panEnd, rotation));
+      // The opening shot starts on its target. Later shots move during their own window.
+      frames.push({ timeMs: start, pose: next, rotation, easing });
+    } else if (intent.mode === "zoom-out") {
+      const moveEnd = Math.min(end, start + transition);
+      frames.push(...zoomOut(current, start, moveEnd, currentRotation, easing));
+    } else if (intent.mode !== "static" && distance > MAX_PAN_PX) {
+      const available = Math.max(0, end - start);
+      const outDuration = Math.min(520, Math.max(260, Math.floor(available * 0.13)));
+      const panDuration = Math.min(460, Math.max(220, Math.floor(available * 0.11)));
+      const inDuration = Math.min(620, Math.max(300, Math.floor(available * 0.16)));
+      const chainEnd = start + outDuration + panDuration + inDuration;
+      if (chainEnd <= end) {
+        const outEnd = start + outDuration;
+        const panEnd = outEnd + panDuration;
+        const baseAtTarget = { ...BASE_POSE, cx: next.cx, cy: next.cy };
+        frames.push(...zoomOut(current, start, outEnd, currentRotation, easing));
+        frames.push(...panTo(BASE_POSE, baseAtTarget, outEnd, panEnd, 0, easing));
+        frames.push(...panTo(baseAtTarget, next, panEnd, chainEnd, rotation, easing));
+      } else {
+        frames.push({ timeMs: start, pose: current, rotation: currentRotation, easing });
+        frames.push({ timeMs: Math.min(end, start + transition), pose: next, rotation, easing });
+      }
+    } else if (intent.mode !== "static") {
+      const moveEnd = Math.min(end, start + transition);
+      frames.push({ timeMs: start, pose: current, rotation: currentRotation, easing });
+      frames.push({ timeMs: Math.max(start, moveEnd), pose: next, rotation, easing });
     }
-    frames.push({ timeMs: Math.min(durationMs, Math.max(start + transition, end - 1)), pose: next, rotation });
+    frames.push({ timeMs: Math.min(durationMs, end), pose: next, rotation, easing });
     current = next;
     currentRotation = rotation;
     currentEnd = end;
   }
-  if (currentEnd < durationMs - 420 && ordered.length > 0) frames.push(...zoomOut(current, durationMs - 420, durationMs));
   return { durationMs, frames: normalizeKeys(frames) };
 }
+
+export const buildCameraTrack = planCameraTrack;

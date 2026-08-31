@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BASE_POSE, MAX_SCALE, fitTarget, followTargets, poseToCss, sampleCameraTrack, targetInsideSafeArea } from "../packages/camera-engine/src/index.js";
+import { BASE_POSE, MAX_SCALE, fitTarget, planCameraTrack, poseToCss, sampleCameraTrack, targetInsideSafeArea } from "../packages/camera-engine/src/index.js";
 import type { CameraTrack, CaptureEvent } from "../packages/shared/src/types.js";
 
 describe("camera engine", () => {
@@ -48,11 +48,16 @@ describe("camera engine", () => {
       pageUrl: "https://github.com/example/repo",
       sceneId: lineId,
       lineId,
+      targetId: `target-${lineId}`,
       timestampMs,
       durationMs: 4000,
       cursorTrack: [],
     });
-    const track = followTargets([event("line-01", 80, 80, 0), event("line-02", 1260, 900, 5000)], {
+    const scenes = [
+      { id: "line-01", lineId: "line-01", narration: "one", source: { type: "github" as const, url: "https://github.com/example/repo", target: { kind: "readme-text" as const, text: "line-01" } }, startMs: 0, endMs: 4000, beatType: "establish" as const, targetId: "target-line-01", camera: { mode: "zoom-in" as const, desiredScale: 1.5, rotation: 0, transitionMs: 500, padding: 40 }, annotations: [] },
+      { id: "line-02", lineId: "line-02", narration: "two", source: { type: "github" as const, url: "https://github.com/example/repo", target: { kind: "readme-text" as const, text: "line-02" } }, startMs: 5000, endMs: 9000, beatType: "proof" as const, targetId: "target-line-02", camera: { mode: "zoom-in" as const, desiredScale: 2, rotation: 0, transitionMs: 500, padding: 30 }, annotations: [] },
+    ];
+    const track = planCameraTrack([event("line-01", 80, 80, 0), event("line-02", 1260, 900, 5000)], scenes, {
       schemaVersion: 1,
       audioPath: "voice.wav",
       totalDurationMs: 9000,

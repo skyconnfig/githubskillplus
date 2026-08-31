@@ -1,5 +1,8 @@
 {
   "name": "@github-video-studio/shared",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "zod": "^4.5.4"
+  }
 }

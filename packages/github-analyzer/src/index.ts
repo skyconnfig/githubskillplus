@@ -79,6 +79,7 @@ function categoryForHeading(heading: string): ReadmeSection["category"] {
   if (/install|getting started|setup/.test(value)) return "installation";
   if (/usage|quickstart|quick start|example/.test(value)) return "usage";
   if (/hardware|gpu|cpu|requirement|memory/.test(value)) return "hardware";
+  if (/architect|design|internals|implementation/.test(value)) return "architecture";
   if (/demo|showcase|screenshot/.test(value)) return "demo";
   return "other";
 }

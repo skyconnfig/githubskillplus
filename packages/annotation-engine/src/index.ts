@@ -1,7 +1,7 @@
-import type { AnnotationType, BoundingBox } from "../../../packages/shared/src/types.js";
+import type { BoundingBox, ExtendedAnnotationType } from "../../../packages/shared/src/types.js";
 
 export interface AnnotationGeometry {
-  type: AnnotationType;
+  type: ExtendedAnnotationType;
   path?: string;
   x: number;
   y: number;
@@ -59,10 +59,14 @@ function boxPath(box: BoundingBox, id: string): string {
   return `M ${x + jitter()} ${y + jitter()} L ${x + w + jitter()} ${y + jitter()} L ${x + w + jitter()} ${y + h + jitter()} L ${x + jitter()} ${y + h + jitter()} Z`;
 }
 
-export function createAnnotationGeometry(type: AnnotationType, box: BoundingBox, id: string): AnnotationGeometry {
+export function createAnnotationGeometry(type: ExtendedAnnotationType, box: BoundingBox, id: string): AnnotationGeometry {
   if (type === "hand-circle") return { type, path: circlePath(box, id), x: box.x - 20, y: box.y - 20, width: box.width + 40, height: box.height + 40 };
   if (type === "hand-underline") return { type, path: underlinePath(box, id), x: box.x, y: box.y, width: box.width, height: box.height + 20 };
   if (type === "hand-box") return { type, path: boxPath(box, id), x: box.x - 12, y: box.y - 12, width: box.width + 24, height: box.height + 24 };
   if (type === "arrow") return { type, path: `M ${box.x - 90} ${box.y - 60} Q ${box.x - 45} ${box.y - 35} ${box.x} ${box.y} M ${box.x - 18} ${box.y - 4} L ${box.x} ${box.y} L ${box.x - 5} ${box.y - 18}`, x: box.x - 100, y: box.y - 70, width: box.width + 100, height: box.height + 70 };
+  if (type === "focus-ring") return { type, path: circlePath({ ...box, x: box.x - 12, y: box.y - 12, width: box.width + 24, height: box.height + 24 }, id), x: box.x - 24, y: box.y - 24, width: box.width + 48, height: box.height + 48 };
+  if (type === "bracket") return { type, path: `M ${box.x - 16} ${box.y} L ${box.x - 16} ${box.y + box.height} M ${box.x - 16} ${box.y} L ${box.x - 2} ${box.y} M ${box.x - 16} ${box.y + box.height} L ${box.x - 2} ${box.y + box.height}`, x: box.x - 20, y: box.y, width: 24, height: box.height };
+  if (type === "highlight") return { type, x: box.x - 6, y: box.y - 4, width: box.width + 12, height: box.height + 8 };
+  if (type === "callout" || type === "number-badge") return { type, path: `M ${box.x} ${box.y} Q ${box.x - 40} ${box.y - 40} ${box.x - 90} ${box.y - 20}`, x: box.x - 100, y: box.y - 60, width: box.width + 100, height: box.height + 60 };
   return { type, x: box.x, y: box.y, width: box.width, height: box.height };
 }

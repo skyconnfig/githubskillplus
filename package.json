@@ -10,6 +10,9 @@
     "test": "vitest run",
     "video": "tsx apps/cli/src/index.ts",
     "desktop": "vite --config apps/desktop/vite.config.ts",
+    "desktop:build": "vite build --config apps/desktop/vite.config.ts",
+    "desktop:electron": "electron dist/apps/desktop/main/index.js",
+    "desktop:run": "pnpm build && pnpm desktop:build && pnpm desktop:electron",
     "render": "tsx packages/renderer/src/render.ts"
   },
   "dependencies": {
@@ -21,7 +24,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remotion": "^4.0.0",
-    "yaml": "^2.8.1"
+    "yaml": "^2.8.1",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",

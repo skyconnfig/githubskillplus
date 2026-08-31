@@ -2,13 +2,17 @@ import { createHash } from "node:crypto";
 import { access, mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AudioTimeline, ScriptDocument } from "../../../packages/shared/src/types.js";
-import { mixWavSegments, probeMedia } from "../../../packages/ffmpeg-utils/src/index.js";
+import { mixWavSegments, padAudio, probeMedia } from "../../../packages/ffmpeg-utils/src/index.js";
 
 export interface TtsClientOptions {
   baseUrl?: string;
   voicePath: string;
   lang?: "zh" | "en";
   cacheDir: string;
+}
+
+export interface AudioTimelineOptions {
+  slotDurationMs?: number;
 }
 
 interface BridgeResponse {
@@ -61,7 +65,7 @@ export async function synthesizeLine(text: string, options: TtsClientOptions): P
   return { path, durationMs: payload.durationMs };
 }
 
-export async function buildAudioTimeline(script: ScriptDocument, options: TtsClientOptions, outputDir: string): Promise<AudioTimeline> {
+export async function buildAudioTimeline(script: ScriptDocument, options: TtsClientOptions, outputDir: string, timelineOptions: AudioTimelineOptions = {}): Promise<AudioTimeline> {
   await mkdir(outputDir, { recursive: true });
   const segments: AudioTimeline["segments"] = [];
   const files: Array<{ path: string; startMs: number }> = [];
@@ -71,9 +75,19 @@ export async function buildAudioTimeline(script: ScriptDocument, options: TtsCli
     const outputPath = join(outputDir, `${line.id}.wav`);
     await writeFile(outputPath, await (await import("node:fs/promises")).readFile(result.path));
     const measured = await probeMedia(outputPath);
-    segments.push({ lineId: line.id, text: line.text, audioPath: outputPath, startMs: cursor, durationMs: measured.durationMs, endMs: cursor + measured.durationMs });
+    const durationMs = timelineOptions.slotDurationMs ?? measured.durationMs;
+    if (timelineOptions.slotDurationMs !== undefined && measured.durationMs > timelineOptions.slotDurationMs) {
+      throw new Error(`TTS segment ${line.id} is ${measured.durationMs}ms, over its ${timelineOptions.slotDurationMs}ms slot`);
+    }
+    if (timelineOptions.slotDurationMs !== undefined && measured.durationMs < timelineOptions.slotDurationMs) {
+      const paddedPath = join(outputDir, `${line.id}.slot.wav`);
+      await padAudio(outputPath, paddedPath, timelineOptions.slotDurationMs);
+      await writeFile(outputPath, await (await import("node:fs/promises")).readFile(paddedPath));
+      await (await import("node:fs/promises")).rm(paddedPath, { force: true });
+    }
+    segments.push({ lineId: line.id, text: line.text, audioPath: outputPath, startMs: cursor, durationMs, endMs: cursor + durationMs });
     files.push({ path: outputPath, startMs: cursor });
-    cursor += measured.durationMs;
+    cursor += durationMs;
   }
   const mixedPath = join(outputDir, "narration.wav");
   await mixWavSegments(files, mixedPath);
